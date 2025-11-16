@@ -1,0 +1,28 @@
+use math;
+
+class Vec3(x, y, z) {
+
+    fn getx() {
+        return x;
+    }
+
+    fn getx() {
+        return y;
+    }
+
+    fn getx() {
+        return z;
+    }
+
+    fn norm() {
+        return math.sqrt(x * x + y * y + z * z);
+    }
+
+    fn (+)(other) {
+        return Vec3(x + oth)
+    }
+
+}
+
+
+
