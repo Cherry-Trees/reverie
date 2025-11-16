@@ -14,12 +14,13 @@ import Text.Parsec ( Parsec )
 type MainParser = Parsec String SymTable
 data SymTable = SymTable { nameTable :: NameTable 
                          , objTable :: ObjTable
+                         , objCounter :: Integer
                          } deriving Show
 type NameTable = Map.Map Name Raw
 type ObjTable = Map.Map Ref Obj
 -- type ObjTable s = MV.MVector s Obj
 
-type Ref = Int
+type Ref = Integer
 type Name = String
 type Raw = Either Prim Ref
 

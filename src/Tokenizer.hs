@@ -22,10 +22,11 @@ sample = do
                     , do
                         str <- strParser
                         cst <- getState
-                        let len = Map.size $ objTable cst
+                        let cnt = objCounter cst
                         updateState $ \st -> SymTable { nameTable = nameTable st
-                                                      , objTable = Map.insert len (StrObj str) $ objTable st }
-                        return $ ref len
+                                                      , objTable = Map.insert cnt (StrObj str) $ objTable st
+                                                      , objCounter = objCounter st + 1 }
+                        return $ ref cnt
                     , do
                         rhsName <- nameParser
                         st <- getState
@@ -35,7 +36,8 @@ sample = do
                         <?> "literal or variable" ]
         void $ char ';'
         updateState $ \st -> SymTable { nameTable = Map.insert name x $ nameTable st 
-                                      , objTable = objTable st }
+                                      , objTable = objTable st
+                                      , objCounter = objCounter st }
         spaces
     getState
 
