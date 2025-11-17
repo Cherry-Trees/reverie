@@ -1,6 +1,6 @@
 module Types where
 import qualified Data.Map as Map
-import Text.Parsec ( Parsec )
+import Text.Parsec ( ParsecT )
 -- import qualified Data.Vector.Mutable as MV
 
 {- Have a map for names to primitives/references, and a mutable vector for objects created at runtime.
@@ -11,7 +11,7 @@ import Text.Parsec ( Parsec )
         obj:  0 -> <Vec Obj> Which would maybe have its own name and obj table
 -}
 
-type MainParser = Parsec String SymTable
+type MainParser = ParsecT String SymTable IO
 data SymTable = SymTable { nameTable :: NameTable 
                          , objTable :: ObjTable
                          , objCounter :: Integer
@@ -24,11 +24,11 @@ type Ref = Integer
 type Name = String
 type Raw = Either Prim Ref
 
-prim :: Prim -> Raw
-prim = Left
+primToRaw :: Prim -> Raw
+primToRaw = Left
 
-ref :: Ref -> Raw
-ref = Right
+refToRaw :: Ref -> Raw
+refToRaw = Right
 
 data Prim
     = IntPrim   Integer
@@ -43,10 +43,12 @@ instance Show Prim where
     show (BoolPrim x) = show x
     show (CharPrim x) = show x
 
+newtype Class = Class { classSymTable :: SymTable }
+
 data Obj    -- Built in objects
     = StrObj    String  -- Technically this is just a ListObj, but for the purposes of I/O, this is separated.
     | ListObj   [Raw]
-    | FuncObj           -- Immutable 
+    | FuncObj   SymTable -- AST        -- Immutable 
     deriving Show
 
 data OpToken
