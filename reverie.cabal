@@ -65,7 +65,8 @@ executable reverie
     other-modules:  
         Types,
         Tokenizer,
-        Parser
+        Parser,
+        Interpreter
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
