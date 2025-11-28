@@ -85,6 +85,9 @@ op f = try (string $ show f) >> return f
 ch :: Char -> Parser ()
 ch = void . tok . char
 
+enum :: Char -> Parser a -> Parser [a]
+enum c p = option [] $ liftA2 (:) p $ many $ tok (char c) >> p
+
 -- op :: [String -> a] -> Parser a
 -- op f s = do
 

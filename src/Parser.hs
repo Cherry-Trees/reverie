@@ -79,12 +79,12 @@ import Text.Parsec.Text
 --                         _ -> fail $ "Variable \"" ++ rhsName ++ "\" has not been declared"
 --                     <?> "literal or variable" 
 
--- varParser :: Parser VarNode
+-- varParser :: Parser Var
 -- varParser = do
 --     pf <- name
 
 --     where
---         suffixParser :: Parser SuffixNode
+--         suffixParser :: Parser Suffix
 --         suffixParser = choice [
 
 --                               ]
@@ -92,105 +92,126 @@ import Text.Parsec.Text
 
 -- Suffix is either .name , [expr] , (exprSequence)
 
--- exprParser :: Parser ExprNode
--- exprParser = choice [ AssignExprNode <$> assignExprParser
---                     , MathExprNode <$> mathExprParser
+-- exprParser :: Parser Expr
+-- exprParser = choice [ AssignExpr <$> assignExprParser
+--                     , MathExpr <$> mathExprParser
 --                     ]
 
 --     where
 --         assignExprParser :: 
 
-varParser :: Parser VarNode
+varParser :: Parser Var
 varParser = do
     pf <- name
     sf <- many suffixParser
-    return $ VarNode { varNodeName = pf
-                     , varNodeSuffixes = sf }
+    return $ Var { varName = pf
+                 , varSuffixes = sf }
     where 
-        suffixParser :: Parser SuffixNode
-        suffixParser = choice [ NameSuffixNode <$> dotNameParser
-                              , IndexSuffixNode <$> indexParser
-                              , ArgsSuffixNode <$> argsParser ]
+        suffixParser :: Parser Suffix
+        suffixParser = choice [ NameSuffix <$> dotNameParser
+                              , IndexSuffix <$> indexParser
+                              , ArgsSuffix <$> argsParser ]
             where
                 dotNameParser :: Parser Name
                 dotNameParser = do
                     ch '.'
                     name <?> "name after dot"
 
-                indexParser :: Parser ExprNode
+                indexParser :: Parser Expr
                 indexParser = do
                     ch '['
                     e <- exprParser <?> "expression after opening bracket in index"
                     ch ']' <?> "closing bracket after index"
                     return e
 
-                argsParser :: Parser [ExprNode]
+                argsParser :: Parser [Expr]
                 argsParser = do
                     ch '('
-                    es <- exprSequenceParser <?> "expression list after opening parenthesis in arguments"
+                    es <- (exprParser `sepBy` ch ',') <?> "expression list after opening parenthesis in arguments"
                     ch ')' <?> "closing parenthesis after expression sequence in arguments"
                     return es
 
 
-exprParser :: Parser ExprNode
-exprParser = try assignExprParser <|> mathExprParser 
+exprParser :: Parser Expr
+exprParser = choice [ try assignExprParser
+                    , try ifExprParser
+                    , mathExprParser ]
     where 
-        assignExprParser :: Parser ExprNode
+        assignExprParser :: Parser Expr
         assignExprParser = do
             v <- varParser
             ch '='
-            AssignExprNode v <$> exprParser
+            e <- exprParser
+            return $ AssignExpr { assignExprLhs = v
+                                , assignExprRhs = e
+                                }
 
-        mathExprParser :: Parser ExprNode
-        mathExprParser = MathExprNode <$> expr3Parser
+        ifExprParser :: Parser Expr
+        ifExprParser = do
+            word "if"
+            e <- exprParser
+            b <- ctrlBlockParser
+            s <- optionMaybe $ word "else"
+            b' <- case s of
+                Nothing -> return []
+                _ -> ctrlBlockParser
+            return $ IfExpr { ifExprCond = e
+                            , ifExprBlock = b
+                            , ifExprElseBlock = b' }
 
-        exprCata :: (a -> [(b, a)] -> c)
-                 -> Parser a 
-                 -> Parser b 
-                 -> Parser c
-        exprCata f ep bp = do
+        
+
+        mathExprParser :: Parser Expr
+        mathExprParser = MathExpr <$> orExprParser
+
+        binExprParser :: (a -> [(b, a)] -> c)
+                      -> Parser a 
+                      -> Parser b 
+                      -> Parser c
+        binExprParser f ep bp = do
             e <- ep
             es <- many $ liftA2 (,) bp ep
             return $ f e es
 
-        unaryExprCata :: (Maybe a -> b -> c)
-                      -> Parser a 
-                      -> Parser b 
-                      -> Parser c
-        unaryExprCata f up ep = do
-            mu <- optionMaybe up
-            f mu <$> ep
+        unaryExprParser :: Parser UnaryExpr
+        unaryExprParser = do
+            us <- many $ choice $ op <$> [NegOp, NotOp]
+            a <- atomParser
+            return $ UnaryExpr us a []  -- Post-fix unary operators will always be empty list unless I implement them.
 
-        expr3Parser = exprCata Expr3Node unaryExpr3Parser binaryOp3Parser
-        expr2Parser = exprCata Expr2Node unaryExpr2Parser binaryOp2Parser
-        expr1Parser = exprCata Expr1Node unaryExpr1Parser binaryOp1Parser
-        expr0Parser = exprCata Expr0Node unaryExpr0Parser binaryOp0Parser
 
-        unaryExpr3Parser = unaryExprCata UnaryExpr3Node unaryOp3Parser expr2Parser
-        unaryExpr2Parser = unaryExprCata UnaryExpr2Node unaryOp2Parser expr1Parser
-        unaryExpr1Parser = unaryExprCata UnaryExpr1Node unaryOp1Parser expr0Parser
-        unaryExpr0Parser = unaryExprCata UnaryExpr0Node unaryOp0Parser atomParser
+        -- unaryExprGen :: (Maybe a -> b -> c)
+        --               -> Parser a 
+        --               -> Parser b 
+        --               -> Parser c
+        -- unaryExprGen f up ep = do
+        --     mu <- optionMaybe up
+        --     f mu <$> ep
 
-        binaryOp3Parser = tok $ choice $ op <$> [EqualOp, NotEqualOp]
-        binaryOp2Parser = tok $ choice $ op <$> [LessThanOp, GreaterThanOp, LessThanEqualOp, GreaterThanEqualOp]
-        binaryOp1Parser = tok $ choice $ op <$> [AddOp, SubOp]
-        binaryOp0Parser = tok $ choice $ op <$> [MulOp, DivOp, ModOp]
+        orExprParser = binExprParser OrExpr andExprParser orOpParser
+        andExprParser = binExprParser AndExpr eqExprParser andOpParser
+        eqExprParser = binExprParser EqExpr relExprParser eqOpParser
+        relExprParser = binExprParser RelExpr addExprParser relOpParser
+        addExprParser = binExprParser AddExpr mulExprParser addOpParser
+        mulExprParser = binExprParser MulExpr unaryExprParser mulOpParser
 
-        unaryOp3Parser = nothing
-        unaryOp2Parser = nothing
-        unaryOp1Parser = nothing
-        unaryOp0Parser = op NegateOp
-        
+        orOpParser = tok $ op OrOp
+        andOpParser = tok $ op AndOp
+        eqOpParser = tok $ choice $ op <$> [EqOp, NotEqOp]
+        relOpParser = tok $ choice $ op <$> [LTOp, GTOp, LTEOp, GTEOp]
+        addOpParser = tok $ choice $ op <$> [AddOp, SubOp]
+        mulOpParser = tok $ choice $ op <$> [MulOp, DivOp, ModOp]
 
-exprSequenceParser :: Parser [ExprNode]
-exprSequenceParser = option [] $ liftA2 (:) exprParser $ many $ tok (char ',') >> exprParser
+
+
+
                 
-atomParser :: Parser AtomNode
-atomParser = choice [ BindableAtomNode <$> primitiveBindableParser
-                    , ExprAtomNode <$> exprAtomParser
-                    , StrAtomNode <$> strObjParser
-                    , ListAtomNode <$> listObjParser
-                    , VarAtomNode <$> varParser ]
+atomParser :: Parser Atom
+atomParser = choice [ BindableAtom <$> primitiveBindableParser
+                    , ExprAtom <$> exprAtomParser
+                    , StrAtom <$> strObjParser
+                    , ListAtom <$> listObjParser
+                    , VarAtom <$> varParser ]
             where
                 primitiveBindableParser :: Parser Bindable
                 primitiveBindableParser = choice [ numParser
@@ -225,7 +246,7 @@ atomParser = choice [ BindableAtomNode <$> primitiveBindableParser
                         noneParser :: Parser Bindable
                         noneParser = word "None" >> return NoneVal 
 
-                exprAtomParser :: Parser ExprNode
+                exprAtomParser :: Parser Expr
                 exprAtomParser = do
                     ch '('
                     e <- exprParser
@@ -240,50 +261,74 @@ atomParser = choice [ BindableAtomNode <$> primitiveBindableParser
                             void (char '\"' <?> "quotes after string literal")
                             return text
 
-                listObjParser :: Parser [ExprNode]
+                listObjParser :: Parser [Expr]
                 listObjParser = do
                     ch '['
-                    es <- exprSequenceParser
+                    es <- exprParser `sepBy` ch ','
                     ch ']' <?> "closing bracket after list"
                     return es
 
                 
-blockParser :: Parser [StmtNode]
+blockParser :: Parser [Stmt]
 blockParser = do 
     ch '{'
-    es <- many stmtParser
+    es <- stmtParser `sepEndBy` ch ';'
     ch '}' <?> "closing brace after block"
     return es
 
 -- Fix keywords being assignable
-stmtParser :: Parser StmtNode
-stmtParser = choice [ IfStmtNode <$> ifParser
-                    , ExprStmtNode <$> do
-                        e <- exprParser
-                        ch ';'
-                        return e 
+stmtParser :: Parser Stmt
+stmtParser = choice [ --IfStmt <$> ifParser
+                     ExprStmt <$> exprParser
                     ]
 
-ifParser :: Parser IfNode
-ifParser = do
-    word "if"
-    e <- exprParser
-    b <- blockParser
-    s <- optionMaybe $ word "else"
-    b' <- case s of
-        Nothing -> return []
-        _ -> blockParser
-    return $ IfNode { ifNodeExpr = e
-                    , ifNodeBlock = b
-                    , ifNodeElse = b' }
+ctrlBlockParser :: Parser [CtrlStmt]
+ctrlBlockParser = do
+    ch '{'
+    es <- ctrlStmtParser `sepEndBy` ch ';'
+    ch '}' <?> "closing brace after control flow block"
+    return es
+
+ctrlStmtParser :: Parser CtrlStmt
+ctrlStmtParser = (GenStmt <$> stmtParser) 
+             <|> (BreakStmt <$> (word "break" >> exprParser))
+                        
+    -- where
+    --     breakStmtParser :: Parser Expr
+    --     breakStmtParser = 
+
+-- ifParser :: Parser If
+-- ifParser = do
+--     word "if"
+--     e <- exprParser
+--     b <- blockParser
+--     s <- optionMaybe $ word "else"
+--     b' <- case s of
+--         Nothing -> return []
+--         _ -> blockParser
+--     return $ If { ifExpr = e
+--                     , ifBlock = b
+--                     , ifElseBlock = b' }
 
 
+-- whileParser :: Parser While
+-- whileParser = do
+--     word "while"
+--     e <- exprParser
+--     b <- blockParser
+--     return $ While { whileExpr = e
+--                        , whileBlock = b }
 
-test :: Parser [ExprNode]
+-- fnParser :: Parser Fn
+
+
+-- fnParser :: Parser 
+
+test :: Parser [Expr]
 test = many $ do
     e <- exprParser
     void $ tok $ char ';'
     return e
 
-test1 :: Parser [StmtNode]
-test1 = many stmtParser
+test1 :: Parser [Stmt]
+test1 = stmtParser `sepEndBy` ch ';'

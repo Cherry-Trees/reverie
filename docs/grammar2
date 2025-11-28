@@ -1,0 +1,95 @@
+
+
+start:
+    | 
+
+expr_seq:
+    | expr ("," expr)*
+
+expr:
+    | var "=" expr
+    | lambda_expr
+    | if_expr
+    | for_expr
+    | while_expr
+    | loop_expr
+    | or_expr
+
+
+if x {
+    code()
+}
+else {
+    do_stuff()
+}
+
+for x in [1,2,3] {
+    sum = sum + x
+}
+    
+
+
+if_expr:
+    "if" expr ctrl_block ("else" ctrl_block)?
+
+for_expr:
+    "for" iterable "in" expr ctrl_block ("then" ctrl_block)?
+
+while_expr:
+    "while" expr ""
+
+or_expr:
+    | and_expr (or_op and_expr)*
+
+and_expr:
+    | eq_expr (and_op eq_expr)*
+
+eq_expr:
+    | rel_expr (eq_op rel_expr)*
+
+rel_expr:
+    | add_expr (rel_op add_expr)*
+
+add_expr:
+    | mul_expr (add_op mul_expr)*
+
+mul_expr:
+    | unary_expr (mul_op unary_expr)*
+
+unary_expr:
+    | (pre_unary_op)* atom (post_unary_op)*
+
+atom:
+    | prim
+    | var
+    | list
+    | str
+    | map
+    | tuple
+    | "(" expr ")"
+
+prim:
+    | float 
+    | int
+    | char
+    | bool
+    | none
+
+float:
+    | digit+ "." digit+
+
+int:
+    | digit+
+
+char:
+    | "'" . "'" 
+
+bool:
+    | "True"
+    | "False"
+
+none:
+    | "None"
+
+var:
+    | name (("[" expr "]") | ("(" expr_seq? ")"))*

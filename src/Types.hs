@@ -4,9 +4,10 @@
 module Types where
 import qualified Data.Map as Map
 import Text.Parsec ( ParsecT, Parsec )
-import Control.Monad.State (StateT)
+import Control.Monad.State
 import Data.Char (ord, chr)
 import Text.Parsec.ByteString (Parser)
+import qualified Data.Vector as Vec
 -- import qualified Data.Vector.Mutable as MV
 
 {- Have a map for names to primitives/references, and a mutable vector for objects created at runtime.
@@ -22,266 +23,192 @@ import Text.Parsec.ByteString (Parser)
 
 {-------------- PARSE TREE --------------}
 
-data StartNode = StartNode { startNodeUses :: [UseNode]
-                           , startNodeStmts :: [StmtNode]
-                           } deriving Show
 
-newtype UseNode = UseNode { useNames :: [Name] 
-                                  } deriving Show -- Could maybe be Name [Name]
 
-data StmtNode
-    = ClassStmtNode  ClassNode
-    | FnStmtNode     FnNode
-    | IfStmtNode     IfNode
-    | ForStmtNode    ForNode
-    | WhileStmtNode  WhileNode
-    | ExprStmtNode   ExprNode
 
-    | ReturnStmtNode ReturnNode
+data Start = Start { startUses :: [Name]
+                   , startDecls :: [Decl]
+                   } deriving Show
+
+data Decl
+    = RecDecl   Rec
+    | FnDecl    Fn
     deriving Show
 
--- data FnStmtNode
---     = ClassFnStmtNode   ClassNode
---     | FnFnStmtNode      FnNode
---     | IfFnStmtNode      FnIfNode
---     | ForFnStmtNode     FnForNode
---     | WhileFnStmtNode   FnWhileNode
---     | ReturnFnStmtNode  ReturnNode
---     | ExprFnStmtNode    ExprNode
+data Stmt
+    = ExprStmt   Expr
+    | ReturnStmt Expr
+    deriving Show
 
--- newtype BlockNode = [StmtNode] { blockNodeStmts :: [StmtNode] 
---                                     } deriving Show
--- newtype ClassBlockNode = ClassBlockNode { classBlockNodeStmts :: [FnNode]
---                                         } deriving Show
--- newtype FnBlockNode    = FnBlockNode    [FnStmtNode]
+data CtrlStmt
+    = GenStmt   Stmt
+    | BreakStmt Expr
+    deriving Show
 
-data ClassNode = ClassNode { classNodeName   :: Name 
-                           , classNodeAttrs  :: [Name]
-                           , classNodeParent :: Maybe Name
-                           , classNodeBlock  :: [FnNode]
-                           } deriving Show
+data Rec = Rec { className   :: Name 
+               , classAttrs  :: [Name]
+               , classParent :: Maybe Name
+               , classBlock  :: [Fn]
+               } deriving Show
 
-data FnNode = FnNode { fnNodeName   :: Name
-                     , fnNodeParams :: [Name]
-                     , fnNodeBlock  :: [StmtNode]
-                     } deriving Show
+data Fn = Fn { fnName   :: Name
+             , fnParams :: [Name]
+             , fnBlock  :: [Stmt]
+             } deriving Show
 
-data IfNode = IfNode { ifNodeExpr  :: ExprNode
-                     , ifNodeBlock :: [StmtNode]
-                     , ifNodeElse  :: [StmtNode]
-                     } deriving Show
+-- data Block = Block { blockStmts :: [Stmt]
+--                    , blockEnd :: Maybe Expr  -- Expression without semicolon at the end.
+--                    }
 
-newtype ElseNode = ElseNode { elseNodeBlock :: [StmtNode] 
-                            } deriving Show
+data Expr
+    = MathExpr      OrExpr
+    | AssignExpr    { assignExprLhs         :: Var
+                    , assignExprRhs         :: Expr
+                    }
+    | IfExpr        { ifExprCond            :: Expr
+                    , ifExprBlock           :: [CtrlStmt]
+                    , ifExprElseBlock       :: [CtrlStmt]
+                    } 
+    | ForExpr       { forExprName           :: Name
+                    , forExprIter           :: Expr
+                    , forExprBlock          :: [CtrlStmt]
+                    }
+    | WhileExpr     { whileExprCond         :: Expr
+                    , whileExprBlock        :: [CtrlStmt]
+                    , whileExprElseBlock    :: [CtrlStmt]
+                    }
+    | LoopExpr      { loopExprBlock         :: [CtrlStmt]
+                    }
+    deriving Show
 
-data ForNode = ForNode { forNodeEnum  :: Name
-                       , forNodeExpr  :: ExprNode
-                       , forNodeBlock :: [StmtNode]
-                       } deriving Show
+data OrExpr
+    = OrExpr AndExpr [(OrPrecOp, AndExpr)]
+    deriving Show
 
-data WhileNode = WhileNode { whileNodeExpr  :: ExprNode
-                           , whileNodeBlock :: [StmtNode]
-                           } deriving Show
+data AndExpr
+    = AndExpr EqExpr [(AndPrecOp, EqExpr)]
+    deriving Show
 
-newtype ReturnNode = ReturnNode { returnNodeExpr :: ExprNode 
-                                } deriving Show
+data EqExpr 
+    = EqExpr RelExpr [(EqPrecOp, RelExpr)] 
+    deriving Show
+
+data RelExpr 
+    = RelExpr AddExpr [(RelPrecOp, AddExpr)] 
+    deriving Show
+
+data AddExpr 
+    = AddExpr MulExpr [(AddPrecOp, MulExpr)] 
+    deriving Show
+
+data MulExpr 
+    = MulExpr UnaryExpr [(MulPrecOp, UnaryExpr)]  
+    deriving Show
+
+data UnaryExpr
+    = UnaryExpr [PreUnaryOp] Atom [PostUnaryOp]
+    deriving Show
+
+data Atom 
+    = VarAtom       Var
+    | BindableAtom  Bindable 
+    | StrAtom       String
+    | ListAtom      [Expr]
+    | ExprAtom      Expr -- '(' expr ')'
+    deriving Show
+
+data Suffix
+    = NameSuffix    Name
+    | IndexSuffix   Expr
+    | ArgsSuffix    [Expr]
+    deriving Show
+
+data Var = Var { varName     :: Name 
+               , varSuffixes :: [Suffix]
+               } deriving Show
 
 
--- data FnIfNode = FnIfNode { fnIfNodeExpr  :: ExprNode
---                          , fnIfNodeBlock :: FnBlockNode
---                          , fnIfNodeElse  :: Maybe FnElseNode
---                          }
+data PreUnaryOp
+    = NegOp
+    | NotOp
 
--- newtype ElseNode = ElseNode { elseNodeBlock :: [StmtNode] 
---                             }
+data PostUnaryOp
 
--- data ForNode = ForNode { forNodeEnum  :: Name
---                        , forNodeExpr  :: ExprNode
---                        , forNodeBlock :: [StmtNode]
---                        }
+data OrPrecOp
+    = OrOp
 
--- data WhileNode = WhileNode { whileNodeExpr  :: ExprNode
---                            , whileNodeBlock :: [StmtNode]
---                            }
+data AndPrecOp
+    = AndOp
 
+data EqPrecOp
+    = EqOp
+    | NotEqOp
 
+data RelPrecOp
+    = LTOp
+    | LTEOp
+    | GTOp
+    | GTEOp
 
--- data BinaryOp5
---     = OrOp
---     deriving Show
-
--- data BinaryOp4
---     = AndOp
---     deriving Show
-
-
-
-
-data BinaryOp3
-    = EqualOp
-    | NotEqualOp
-
-data BinaryOp2
-    = LessThanOp
-    | LessThanEqualOp
-    | GreaterThanOp
-    | GreaterThanEqualOp
-
-data BinaryOp1
+data AddPrecOp
     = AddOp
     | SubOp
 
-data BinaryOp0
+data MulPrecOp
     = MulOp
     | DivOp
     | ModOp 
 
-data UnaryOp3 
+instance Show PreUnaryOp where
+    show NegOp = "-"
+    show NotOp = "!"
 
-data UnaryOp2 
+instance Show PostUnaryOp where
+    show _ = ""
 
-data UnaryOp1 
+instance Show OrPrecOp where
+    show OrOp = "||"
 
-data UnaryOp0
-    = NegateOp
+instance Show AndPrecOp where
+    show AndOp = "&&"
 
-instance Show BinaryOp3 where
-    show EqualOp = "=="
-    show NotEqualOp = "!="
+instance Show EqPrecOp where
+    show EqOp = "=="
+    show NotEqOp = "!="
 
-instance Show BinaryOp2 where
-    show LessThanOp = "<"
-    show LessThanEqualOp = "<="
-    show GreaterThanOp = ">"
-    show GreaterThanEqualOp = ">="
+instance Show RelPrecOp where
+    show LTOp = "<"
+    show LTEOp = "<="
+    show GTOp = ">"
+    show GTEOp = ">="
 
-instance Show BinaryOp1 where
+instance Show AddPrecOp where
     show AddOp = "+"
     show SubOp = "-"
 
-instance Show BinaryOp0 where
+instance Show MulPrecOp where
     show MulOp = "*"
     show DivOp = "/"
     show ModOp = "%"
-
-instance Show UnaryOp3 where
-    show _ = ""
-
-instance Show UnaryOp2 where
-    show _ = ""
-
-instance Show UnaryOp1 where
-    show _ = ""
-
-instance Show UnaryOp0 where
-    show NegateOp = "-"
-
-data ExprNode
-    = AssignExprNode VarNode ExprNode
-    | MathExprNode Expr3Node
-    deriving Show
-
-data UnaryExpr3Node
-    = UnaryExpr3Node (Maybe UnaryOp3) Expr2Node
-    deriving Show
-
-data UnaryExpr2Node
-    = UnaryExpr2Node (Maybe UnaryOp2) Expr1Node
-    deriving Show
-
-data UnaryExpr1Node
-    = UnaryExpr1Node (Maybe UnaryOp1) Expr0Node
-    deriving Show
-
-data UnaryExpr0Node
-    = UnaryExpr0Node (Maybe UnaryOp0) AtomNode
-    deriving Show
-
-data Expr3Node 
-    = Expr3Node UnaryExpr3Node [(BinaryOp3, UnaryExpr3Node)] 
-    deriving Show
-
-data Expr2Node 
-    = Expr2Node UnaryExpr2Node [(BinaryOp2, UnaryExpr2Node)] 
-    deriving Show
-
-data Expr1Node 
-    = Expr1Node UnaryExpr1Node [(BinaryOp1, UnaryExpr1Node)] 
-    deriving Show
-
-data Expr0Node 
-    = Expr0Node UnaryExpr0Node [(BinaryOp0, UnaryExpr0Node)]  
-    deriving Show
-
-
-
--- data Expr0Node
---     = SingleExpr0Node AtomNode
---     | NegExpr0Node AtomNode
---     | MulExpr0Node Expr0Node Expr0Node
---     | DivExpr0Node Expr0Node Expr0Node
---     | ModExpr0Node Expr0Node Expr0Node
---     deriving Show
-
--- data Expr1Node
---     = SingleExpr1Node Expr0Node
---     | AddExpr1Node Expr1Node Expr1Node
---     | SubExpr1Node Expr1Node Expr1Node
---     deriving Show
-
--- data Expr2Node
---     = SingleExpr2Node Expr1Node
---     | LTExpr2Node Expr2Node Expr2Node
---     | LTEExpr2Node Expr2Node Expr2Node
---     | GTExpr2Node Expr2Node Expr2Node
---     | GTEExpr2Node Expr2Node Expr2Node
---     deriving Show
-
--- data Expr3Node
---     = SingleExpr3Node Expr2Node
---     | NEQExpr3Node Expr3Node Expr3Node
---     | EQExpr3Node Expr3Node Expr3Node
---     deriving Show
-
-
-
-data AtomNode 
-    = VarAtomNode       VarNode
-    | BindableAtomNode  Bindable 
-    | StrAtomNode       String
-    | ListAtomNode      [ExprNode]
-    | ExprAtomNode      ExprNode -- '(' expr ')'
-    deriving Show
-
-data SuffixNode
-    = NameSuffixNode    Name
-    | IndexSuffixNode   ExprNode
-    | ArgsSuffixNode    [ExprNode]
-    deriving Show
-
-data VarNode = VarNode { varNodeName     :: Name 
-                       , varNodeSuffixes :: [SuffixNode]
-                       } deriving Show
 
 
 
 -- If the context is dependent on a type (type-dependent), then it can't be a functor
 
 
+-- data SymInfo = SymInfo {
+
+--                        }
 
 
 
-type Env = StateT SymTable IO
--- type SrcParser = Parser String
--- type MainParser = ParsecT String SymTable IO
-data SymTable = SymTable { nameTable  :: NameTable 
-                         , objTable   :: ObjTable
-                         , objCounter :: Integer
-                         } deriving Show
+type Prgm = StateT SymTable (StateT Heap IO)
+data Heap = Heap { heapObjTable :: Map.Map Ref Obj
+                 , heapCurrRef :: Ref }
 
-    
-type NameTable = Map.Map Name Bindable
-type ObjTable = Map.Map Ref Obj
+type Scope = Map.Map Name Bindable
+type SymTable = [Scope]
+
 type Ref = Integer
 type Name = String
 
@@ -291,6 +218,8 @@ type Name = String
 --     = PrimBindable   Bindable
 --     | ClassBindable  Class
 --     deriving Show
+
+
 
 -- Primitive values that can be bound directly to a name
 data Bindable
@@ -307,15 +236,15 @@ instance Show Bindable where
     show (FloatVal x) = show x
     show (BoolVal x) = show x
     show (CharVal x) = show x
-    show _ = "none"
+    show _ = "None"
 
 showPrimType :: Bindable -> String
-showPrimType (RefVal _) = "ref"
-showPrimType (FloatVal _) = "float"
-showPrimType (IntVal _) = "int"
-showPrimType (CharVal _) = "char"
-showPrimType (BoolVal _) = "bool"
-showPrimType _ = "none"
+showPrimType (RefVal _) = "Ref"
+showPrimType (FloatVal _) = "Float"
+showPrimType (IntVal _) = "Int"
+showPrimType (CharVal _) = "Char"
+showPrimType (BoolVal _) = "Bool"
+showPrimType _ = "None"
 
 
 newtype Class = Class { classSymTable :: SymTable } deriving Show
@@ -323,10 +252,11 @@ newtype Class = Class { classSymTable :: SymTable } deriving Show
 data Obj    -- Built in objects
     = StrObj    String  -- Technically this is just a ListObj, but for the purposes of I/O, this is separated.
     | ListObj   [Bindable]
-    | FuncObj   SymTable [StmtNode]-- AST        -- Immutable 
-    | ClassObj  SymTable
+    | MapObj    (Map.Map Bindable Bindable)
+    | TupleObj  (Vec.Vector Bindable)
+    | RecObj    SymTable
+    | FuncObj   SymTable [Stmt]-- AST        -- Immutable 
     deriving Show
-
 
 
 -- data Location = Location { locationStartLine    :: Int

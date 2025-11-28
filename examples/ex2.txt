@@ -1,0 +1,21 @@
+[ 1 ,2, 3,4 ,  "" ];
+
+if 1 == x[i] {
+    x[0] = 8 + y;
+
+    y = if 7 {
+        5
+    } else {
+        0
+    };
+
+    if (if x {True} else {False}) {
+        True
+    }
+    else {
+        if (if (5) {4}) {
+            x = 100 * 100
+        }
+    };
+
+}

@@ -78,7 +78,8 @@ executable reverie
         mtl,
         exceptions,
         parsec,
-        text
+        text,
+        vector
 
     -- Directories containing source files.
     hs-source-dirs:   src

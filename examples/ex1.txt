@@ -1,28 +1,29 @@
 use math;
 
-class Vec3(x, y, z) {
-
-    fn getx() {
-        return x;
+rec Dog(name, color, id, age) {
+    fn add_age_and_id() {
+        id + age
     }
-
-    fn getx() {
-        return y;
-    }
-
-    fn getx() {
-        return z;
-    }
-
-    fn norm() {
-        return math.sqrt(x * x + y * y + z * z);
-    }
-
-    fn (+)(other) {
-        return Vec3(x + oth)
-    }
-
 }
+
+x = Dog("hi", "red", 5, 10);
+
+
+fn main() {
+    x = 55;
+    x = [
+        {
+            None
+        },
+        if x == 10 {
+            6
+        } else {
+            10
+        }
+    ]
+}
+
+    
 
 
 
