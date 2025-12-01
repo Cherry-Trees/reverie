@@ -30,7 +30,7 @@ import Text.Parsec.Text
 --         Just (c, cs) -> print $ c : cs
 --         _ -> fail ""
 
--- assignment :: MainParser Bindable
+-- assignment :: MainParser Prim
 -- assignment = do
 --     nm <- name
 --     tok $ void (char '=' <?> "missing =!")
@@ -40,11 +40,11 @@ import Text.Parsec.Text
 --                                     , objCounter = objCounter st }
 --     return x
 
--- expr :: MainParser Bindable
+-- expr :: MainParser Prim
 -- expr = choice [ try assignment
 --            , atom ]
 
--- exprSequence :: MainParser [Bindable]
+-- exprSequence :: MainParser [Prim]
 -- exprSequence = option [] $ liftA2 (:) expr $ many $ tok (char ',') >> expr
 --     -- e <- atom -- Replace with expr
 --     -- es <- many $ do
@@ -53,12 +53,12 @@ import Text.Parsec.Text
 --     -- return $ e : es
     
 
--- -- I'm returning all of these values straight up from the parsers, but I probably want to build a Tree up.
--- -- This way I don't have to distinguish between if an expression is in a function block or not (can't just return values straight up from functions).
--- atom :: MainParser Bindable
--- atom = choice [ primitiveBindableParser
---               , RefVal <$> strObjParser
---               , RefVal <$> listObj
+-- -- I'm returning all of these Primues straight up from the parsers, but I probably want to build a Tree up.
+-- -- This way I don't have to distinguish between if an expression is in a function block or not (can't just return Primues straight up from functions).
+-- atom :: MainParser Prim
+-- atom = choice [ primParser
+--               , RefPrim <$> strObjParser
+--               , RefPrim <$> listObj
 --               , var 
 --               ] where 
 --                 strObjParser = do
@@ -75,7 +75,7 @@ import Text.Parsec.Text
 --                     rhsName <- name
 --                     st <- getState
 --                     case Map.lookup rhsName $ nameTable st of
---                         Just val -> return val
+--                         Just Prim -> return Prim
 --                         _ -> fail $ "Variable \"" ++ rhsName ++ "\" has not been declared"
 --                     <?> "literal or variable" 
 
@@ -207,44 +207,44 @@ exprParser = choice [ try assignExprParser
 
                 
 atomParser :: Parser Atom
-atomParser = choice [ BindableAtom <$> primitiveBindableParser
+atomParser = choice [ PrimAtom <$> primParser
                     , ExprAtom <$> exprAtomParser
                     , StrAtom <$> strObjParser
                     , ListAtom <$> listObjParser
                     , VarAtom <$> varParser ]
             where
-                primitiveBindableParser :: Parser Bindable
-                primitiveBindableParser = choice [ numParser
+                primParser :: Parser Prim
+                primParser = choice [ numParser
                                                  , boolParser
                                                  , charParser
                                                  , noneParser
                                                  ] <?> "int, float, bool, char, or none literal, e.g. (67, 3.1415, True, \'k\', None)"
                     where
-                        numParser :: Parser Bindable
+                        numParser :: Parser Prim
                         numParser = tok $ do
                             whole <- many1 digit
                             dot <- optionMaybe $ char '.'
                             case dot of
-                                Nothing -> return $ IntVal $ read whole
+                                Nothing -> return $ IntPrim $ read whole
                                 _ -> do
                                     decimal <- many1 digit <?> "decimal component, add \'0\' to the end"
-                                    return $ FloatVal $ read $ whole ++ "." ++ decimal
+                                    return $ FloatPrim $ read $ whole ++ "." ++ decimal
 
-                        boolParser :: Parser Bindable
+                        boolParser :: Parser Prim
                         boolParser = true <|> false
                             where
-                                true = word "True" >> return (BoolVal True)
-                                false = word "False" >> return (BoolVal False)
+                                true = word "True" >> return (BoolPrim True)
+                                false = word "False" >> return (BoolPrim False)
 
-                        charParser :: Parser Bindable
+                        charParser :: Parser Prim
                         charParser = tok $ do
                             void $ char '\''
                             c <- anyChar
                             void (char '\'') <?> "closing single quote after char"
-                            return $ CharVal c
+                            return $ CharPrim c
 
-                        noneParser :: Parser Bindable
-                        noneParser = word "None" >> return NoneVal 
+                        noneParser :: Parser Prim
+                        noneParser = word "None" >> return NonePrim 
 
                 exprAtomParser :: Parser Expr
                 exprAtomParser = do

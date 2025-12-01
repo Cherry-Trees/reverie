@@ -1,0 +1,16 @@
+block {} is a sequence of expressions that are discarded except for the last one.
+list [] represents a sequence of expressions that are executed and stored. Mutable and growable.
+tuple () is an immutable ungrowable sequence of expressions
+
+fn fib(n) = if n <= 1 
+            then n 
+            else fib(n - 1) + fib(n - 2)
+            ;
+
+fn quicksort(l) = { pivot = head(l)
+                  ; low = x for x in l : x < pivot
+                  ; high = x for x in l : x >= pivot
+                  ; quicksort(low) + [pivot] + quicksort(high)
+                  } ;
+
+

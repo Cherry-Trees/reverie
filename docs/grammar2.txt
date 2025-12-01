@@ -1,0 +1,104 @@
+start:
+    | fns
+
+fns:
+    | (fn (";" fn)*)?
+
+fn:
+    | "fn" name "(" name_seq? ")" "=" expr
+
+block:
+    | "{" exprs "}"
+
+exprs:
+    | (expr (";" expr)*)?
+
+exprs1:
+    | expr (";" expr)*
+
+exprs2:
+    | expr (";" expr)+
+
+expr:
+    | var "=" expr
+    | or_expr
+
+or_expr:
+    | and_expr (or_op and_expr)*
+
+and_expr:
+    | eq_expr (and_op eq_expr)*
+
+eq_expr:
+    | rel_expr (eq_op rel_expr)*
+
+rel_expr:
+    | add_expr (rel_op add_expr)*
+
+add_expr:
+    | mul_expr (add_op mul_expr)*
+
+mul_expr:
+    | unary_expr (mul_op unary_expr)*
+
+unary_expr:
+    | (pre_unary_op)* atom (post_unary_op)*
+
+atom:
+    | prim
+    | var
+    | "(" expr ")"
+    | list
+    | str
+    | tuple
+    | block
+    | if
+    | for
+    | while
+
+prim:
+    | float 
+    | int
+    | char
+    | bool
+    | none
+
+float:
+    | digit+ "." digit+
+
+int:
+    | digit+
+
+char:
+    | "'" . "'" 
+
+bool:
+    | "True"
+    | "False"
+
+none:
+    | "None"
+
+var:
+    | name (("[" expr "]") | tuple)*
+
+list:
+    | "[" exprs "]"
+
+str:
+    | """ .* """
+
+tuple:
+    | "(" exprs2 ")"
+
+block:
+    | "{" exprs "}"
+
+if:
+    | "if" expr "then" expr ("else" expr)?
+
+for:
+    | expr "for" name "in" expr (":" expr)?
+
+while:
+    | "while" expr "do" expr

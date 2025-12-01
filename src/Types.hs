@@ -8,10 +8,11 @@ import Control.Monad.State
 import Data.Char (ord, chr)
 import Text.Parsec.ByteString (Parser)
 import qualified Data.Vector as Vec
+import qualified Data.Vector.Mutable as MV
 -- import qualified Data.Vector.Mutable as MV
 
 {- Have a map for names to primitives/references, and a mutable vector for objects created at runtime.
-    - Ex. x = 10; would make the entry "x" -> 10 :: Bindable in the first map, and none in the object map (not creating an object here).
+    - Ex. x = 10; would make the entry "x" -> 10 :: Prim in the first map, and none in the object map (not creating an object here).
     - Ex. x = y = Vec(0,0,0); would make two entries in the name map, and one in the object map.
         name: "x" -> 0 :: Ref
               "y" -> 0 :: Ref
@@ -40,10 +41,10 @@ data Stmt
     | ReturnStmt Expr
     deriving Show
 
-data CtrlStmt
-    = GenStmt   Stmt
-    | BreakStmt Expr
-    deriving Show
+-- data Stmt
+--     = GenStmt   Stmt
+--     | BreakStmt Expr
+--     deriving Show
 
 data Rec = Rec { className   :: Name 
                , classAttrs  :: [Name]
@@ -64,20 +65,6 @@ data Expr
     = MathExpr      OrExpr
     | AssignExpr    { assignExprLhs         :: Var
                     , assignExprRhs         :: Expr
-                    }
-    | IfExpr        { ifExprCond            :: Expr
-                    , ifExprBlock           :: [CtrlStmt]
-                    , ifExprElseBlock       :: [CtrlStmt]
-                    } 
-    | ForExpr       { forExprName           :: Name
-                    , forExprIter           :: Expr
-                    , forExprBlock          :: [CtrlStmt]
-                    }
-    | WhileExpr     { whileExprCond         :: Expr
-                    , whileExprBlock        :: [CtrlStmt]
-                    , whileExprElseBlock    :: [CtrlStmt]
-                    }
-    | LoopExpr      { loopExprBlock         :: [CtrlStmt]
                     }
     deriving Show
 
@@ -110,11 +97,11 @@ data UnaryExpr
     deriving Show
 
 data Atom 
-    = VarAtom       Var
-    | BindableAtom  Bindable 
-    | StrAtom       String
-    | ListAtom      [Expr]
-    | ExprAtom      Expr -- '(' expr ')'
+    = VarAtom   Var
+    | PrimAtom  Prim 
+    | StrAtom   String
+    | ListAtom  [Expr]
+    | ExprAtom  Expr -- '(' expr ')'
     deriving Show
 
 data Suffix
@@ -200,13 +187,11 @@ instance Show MulPrecOp where
 
 --                        }
 
-
-
 type Prgm = StateT SymTable (StateT Heap IO)
 data Heap = Heap { heapObjTable :: Map.Map Ref Obj
                  , heapCurrRef :: Ref }
 
-type Scope = Map.Map Name Bindable
+type Scope = Map.Map Name Prim
 type SymTable = [Scope]
 
 type Ref = Integer
@@ -214,36 +199,35 @@ type Name = String
 
 
 -- Types that can be bound to a name
--- data Bindable
---     = PrimBindable   Bindable
+-- data Prim
+--     = PrimBindable   Prim
 --     | ClassBindable  Class
 --     deriving Show
 
 
+-- Prim Primues that can be bound directly to a name
+data Prim
+    = RefPrim       Ref
+    | IntPrim       Integer
+    | FloatPrim     Double
+    | BoolPrim      Bool
+    | CharPrim      Char
+    | NonePrim
 
--- Primitive values that can be bound directly to a name
-data Bindable
-    = RefVal       Ref
-    | IntVal       Integer
-    | FloatVal     Double
-    | BoolVal      Bool
-    | CharVal      Char
-    | NoneVal
-
-instance Show Bindable where
-    show (RefVal x) = 'r' : show x
-    show (IntVal x) = show x
-    show (FloatVal x) = show x
-    show (BoolVal x) = show x
-    show (CharVal x) = show x
+instance Show Prim where
+    show (RefPrim x) = 'r' : show x
+    show (IntPrim x) = show x
+    show (FloatPrim x) = show x
+    show (BoolPrim x) = show x
+    show (CharPrim x) = show x
     show _ = "None"
 
-showPrimType :: Bindable -> String
-showPrimType (RefVal _) = "Ref"
-showPrimType (FloatVal _) = "Float"
-showPrimType (IntVal _) = "Int"
-showPrimType (CharVal _) = "Char"
-showPrimType (BoolVal _) = "Bool"
+showPrimType :: Prim -> String
+showPrimType (RefPrim _) = "Ref"
+showPrimType (FloatPrim _) = "Float"
+showPrimType (IntPrim _) = "Int"
+showPrimType (CharPrim _) = "Char"
+showPrimType (BoolPrim _) = "Bool"
 showPrimType _ = "None"
 
 
@@ -251,9 +235,9 @@ newtype Class = Class { classSymTable :: SymTable } deriving Show
 
 data Obj    -- Built in objects
     = StrObj    String  -- Technically this is just a ListObj, but for the purposes of I/O, this is separated.
-    | ListObj   [Bindable]
-    | MapObj    (Map.Map Bindable Bindable)
-    | TupleObj  (Vec.Vector Bindable)
+    | ListObj   [Prim]
+    | MapObj    (Map.Map Prim Prim)
+    | TupleObj  (Vec.Vector Prim)
     | RecObj    SymTable
     | FuncObj   SymTable [Stmt]-- AST        -- Immutable 
     deriving Show
