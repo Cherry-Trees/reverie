@@ -5,16 +5,20 @@ fns:
     | (fn (";" fn)*)?
 
 fn:
-    | "fn" name "(" name_seq? ")" "=" expr
+    | "fn" name (name | name_tuple)? "=" expr
+
+
+
+name_tuple:
+    | "(" (name ("," name)* | name_tuple) ")"
+
+
 
 block:
     | "{" exprs "}"
 
 exprs:
     | (expr (";" expr)*)?
-
-exprs1:
-    | expr (";" expr)*
 
 exprs2:
     | expr (";" expr)+
@@ -47,7 +51,6 @@ unary_expr:
 atom:
     | prim
     | var
-    | "(" expr ")"
     | list
     | str
     | tuple
@@ -79,8 +82,31 @@ bool:
 none:
     | "None"
 
+f x = x + 2;
+
+f(x) = x + 2;
+
+quicksort l = { pivot = head l
+              ; low = x for x in l if x < pivot
+              ; high = x for x in l if x >= pivot
+              ; quicksort low + [pivot] + quicksort high
+              };
+
+quicksort l = if l
+              then { pivot = head l
+                   ; low = x for x in l if x < pivot
+                   ; high = x for x in l if x >= pivot
+                   ; quicksort low + [pivot] + quicksort high
+                   }
+              else []
+
+quicksort (0, x)
+
+
+
+
 var:
-    | name (("[" expr "]") | tuple)*
+    | name expr?
 
 list:
     | "[" exprs "]"
@@ -98,7 +124,8 @@ if:
     | "if" expr "then" expr ("else" expr)?
 
 for:
-    | expr "for" name "in" expr (":" expr)?
+    | expr "for" name "in" expr ("if" expr)?
 
 while:
     | "while" expr "do" expr
+

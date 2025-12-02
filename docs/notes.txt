@@ -7,10 +7,11 @@ fn fib(n) = if n <= 1
             else fib(n - 1) + fib(n - 2)
             ;
 
-fn quicksort(l) = { pivot = head(l)
-                  ; low = x for x in l : x < pivot
-                  ; high = x for x in l : x >= pivot
+fn quicksort (r ; q ; p) = { pivot = head(l)
+                  ; low = x for x in l if x < pivot
+                  ; high = x for x in l if x >= pivot
                   ; quicksort(low) + [pivot] + quicksort(high)
                   } ;
 
 
+fn 
