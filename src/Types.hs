@@ -36,10 +36,6 @@ data Decl
     | FnDecl    Fn
     deriving Show
 
-data Stmt
-    = ExprStmt   Expr
-    | ReturnStmt Expr
-    deriving Show
 
 -- data Stmt
 --     = GenStmt   Stmt
@@ -54,8 +50,9 @@ data Rec = Rec { className   :: Name
 
 data Fn = Fn { fnName   :: Name
              , fnParams :: [Name]
-             , fnBlock  :: [Stmt]
+             , fnExpr   :: Expr
              } deriving Show
+
 
 -- data Block = Block { blockStmts :: [Stmt]
 --                    , blockEnd :: Maybe Expr  -- Expression without semicolon at the end.
@@ -101,12 +98,12 @@ data Atom
     | PrimAtom  Prim 
     | StrAtom   String
     | ListAtom  [Expr]
-    | ExprAtom  Expr -- '(' expr ')'
+    | BlockAtom [Expr]
+    | TupleAtom [Expr]
     deriving Show
 
 data Suffix
     = NameSuffix    Name
-    | IndexSuffix   Expr
     | ArgsSuffix    [Expr]
     deriving Show
 
@@ -239,7 +236,7 @@ data Obj    -- Built in objects
     | MapObj    (Map.Map Prim Prim)
     | TupleObj  (Vec.Vector Prim)
     | RecObj    SymTable
-    | FuncObj   SymTable [Stmt]-- AST        -- Immutable 
+    -- | FuncObj   SymTable [Stmt]-- AST        -- Immutable 
     deriving Show
 
 

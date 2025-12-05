@@ -159,8 +159,6 @@ exprParser = choice [ try assignExprParser
                             , ifExprBlock = b
                             , ifExprElseBlock = b' }
 
-        
-
         mathExprParser :: Parser Expr
         mathExprParser = MathExpr <$> orExprParser
 
@@ -177,16 +175,8 @@ exprParser = choice [ try assignExprParser
         unaryExprParser = do
             us <- many $ choice $ op <$> [NegOp, NotOp]
             a <- atomParser
+            -- us' <- many $ choice $ op <$> 
             return $ UnaryExpr us a []  -- Post-fix unary operators will always be empty list unless I implement them.
-
-
-        -- unaryExprGen :: (Maybe a -> b -> c)
-        --               -> Parser a 
-        --               -> Parser b 
-        --               -> Parser c
-        -- unaryExprGen f up ep = do
-        --     mu <- optionMaybe up
-        --     f mu <$> ep
 
         orExprParser = binExprParser OrExpr andExprParser orOpParser
         andExprParser = binExprParser AndExpr eqExprParser andOpParser

@@ -1,31 +1,49 @@
 start:
-    | fns
+    | fns?
 
 fns:
-    | (fn (";" fn)*)?
+    | fn (";" fn)
 
 fn:
-    | "fn" name (name | name_tuple)? "=" expr
+    | "fn" name param? "=" expr
 
+fn f(x: Int) -> Int = {
 
+}
 
-name_tuple:
-    | "(" (name ("," name)* | name_tuple) ")"
+ident:
+    | name (":" type)?
 
+type:
+    | name
 
+param:
+    | name
+    | "(" names? ")"
 
-block:
-    | "{" exprs "}"
+names:
+    | name ("," name)*
+
+name:
+    | alpha (alpha | digit)*
+
+let x = 5;
+l = [1 ; 3 ; 4];
+l ! 0 = 10;
+print l;
 
 exprs:
-    | (expr (";" expr)*)?
-
-exprs2:
-    | expr (";" expr)+
+    | expr (";" expr)*
 
 expr:
-    | var "=" expr
-    | or_expr
+    | "let" ident "=" expr
+    | or_expr ("=" expr)?
+
+x = 5;
+
+
+bind_expr:
+    | or_expr (bind_op or_expr)*
 
 or_expr:
     | and_expr (or_op and_expr)*
@@ -48,16 +66,50 @@ mul_expr:
 unary_expr:
     | (pre_unary_op)* atom (post_unary_op)*
 
+or_op:
+    | "||"
+
+and_op:
+    | "&&"
+
+eq_op:
+    | "=="
+    | "!="
+
+rel_op:
+    | "<"
+    | "<="
+    | ">"
+    | ">="
+
+add_op:
+    | "+"
+    | "-"
+
+mul_op:
+    | "*"
+    | "/"
+    | "%"
+
+pre_unary_op:
+    | "-"
+    | "~"
+
+post_unary_op:
+    | "!"
+
+print!(4);
+
 atom:
     | prim
     | var
-    | list
     | str
+    | list
     | tuple
     | block
+    | lambda
     | if
     | for
-    | while
 
 prim:
     | float 
@@ -82,43 +134,54 @@ bool:
 none:
     | "None"
 
+
+
 f x = x + 2;
 
 f(x) = x + 2;
 
-quicksort l = { pivot = head l
-              ; low = x for x in l if x < pivot
-              ; high = x for x in l if x >= pivot
-              ; quicksort low + [pivot] + quicksort high
-              };
-
-quicksort l = if l
-              then { pivot = head l
-                   ; low = x for x in l if x < pivot
-                   ; high = x for x in l if x >= pivot
-                   ; quicksort low + [pivot] + quicksort high
-                   }
-              else []
-
-quicksort (0, x)
+have a map of expression trees for pattern matching/set of mappings (tuples)'
 
 
 
+
+
+r = (1,2);
+f!r;
+fn printFive: None = print! 5
+;
+
+fn main -> None = printFive! 
+;
+
+
+f : R -> R -> R
+f = x -> y -> x + y
+
+
+f : R -> (R -> R) -> R
+f = x -> g -> g x
 
 var:
-    | name expr?
-
-list:
-    | "[" exprs "]"
+    | name ("!" expr?)?
 
 str:
     | """ .* """
 
+list:
+    | "[" exprs? "]"
+
 tuple:
-    | "(" exprs2 ")"
+    | "(" exprs? ")"
 
 block:
-    | "{" exprs "}"
+    | "{" exprs? "}"
+
+f = const 5;
+
+lambda:
+    | "const" expr
+    | 
 
 if:
     | "if" expr "then" expr ("else" expr)?
